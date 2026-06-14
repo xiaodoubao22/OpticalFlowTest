@@ -1,0 +1,254 @@
+#version 460
+layout(local_size_x = 4, local_size_y = 4, local_size_z = 4) in;
+
+uniform ivec2 iInputLumaResolution;
+uniform uint uOpticalFlowPyramidLevel;
+uniform uint uOpticalFlowPyramidLevelCount;
+uniform uint iFrameIndex;
+
+layout(binding = 0) uniform usampler2D r_optical_flow_input;
+layout(binding = 1) uniform usampler2D r_optical_flow_previous_input;
+layout(binding = 2) uniform isampler2D r_optical_flow;
+layout(binding = 3, rg16i) uniform writeonly iimage2D rw_optical_flow_next_level;
+// layout(set = 0, binding = 4, r32ui) uniform readonly uimage2D rw_optical_flow_scd_output;
+
+shared ivec2 nearestVectors[4][4][4];
+shared uint localRegion[4][4][4];
+shared uint sads[4][4][4];
+
+void main()
+{
+    ivec3 _668 = ivec3(gl_GlobalInvocationID);
+    ivec3 _671 = ivec3(gl_LocalInvocationID);
+    do
+    {
+        bool _1437;
+        do
+        {
+            if (iFrameIndex <= 5u)
+            {
+                _1437 = true;
+                break;
+            }
+            else
+            {
+                //_1437 = (imageLoad(rw_optical_flow_scd_output, ivec2(1, 0)).x & 15u) != 0u;
+                _1437 = false;
+                break;
+            }
+            break; // unreachable workaround
+        } while(false);
+        if (_1437)
+        {
+            imageStore(rw_optical_flow_next_level, _668.xy, ivec4(0));
+            break;
+        }
+        int _724 = _671.z;
+        int _728 = _668.x;
+        int _736 = _668.y;
+        ivec2 _921 = texelFetch(r_optical_flow, ivec2((_728 / 2) + (((_724 % 2) - 1) + (_728 % 2)), (_736 / 2) + (((_724 / 2) - 1) + (_736 % 2))), 0).xy;
+        int _755 = _671.y;
+        int _757 = _671.x;
+        nearestVectors[_724][_755][_757] = _921 * ivec2(2);
+        for (int _1438 = _724; _1438 < 4; _1438 += 4)
+        {
+            int _772 = _728 * 4;
+            int _952 = iInputLumaResolution.x >> int(uOpticalFlowPyramidLevel);
+            int _958 = _952 - 4;
+            ivec2 _969 = ivec2(max(0, min(_958, _772)), max(0, min(((iInputLumaResolution.y >> int(uOpticalFlowPyramidLevel)) - 1), ((_736 * 4) + _1438))));
+            uint _1064 = ((texelFetch(r_optical_flow_input, _969, 0).x | (texelFetch(r_optical_flow_input, _969 + ivec2(1, 0), 0).x << uint(8))) | (texelFetch(r_optical_flow_input, _969 + ivec2(2, 0), 0).x << uint(16))) | (texelFetch(r_optical_flow_input, _969 + ivec2(3, 0), 0).x << uint(24));
+            uint _1473;
+            if (_772 < 0)
+            {
+                uint _1069 = _1064 & 255u;
+                uint _1471;
+                if (_772 <= (-1))
+                {
+                    _1471 = (_1064 << uint(8)) | _1069;
+                }
+                else
+                {
+                    _1471 = _1064;
+                }
+                uint _1472;
+                if (_772 <= (-2))
+                {
+                    _1472 = (_1471 << uint(8)) | _1069;
+                }
+                else
+                {
+                    _1472 = _1471;
+                }
+                uint _1476;
+                if (_772 <= (-3))
+                {
+                    _1476 = (_1472 << uint(8)) | _1069;
+                }
+                else
+                {
+                    _1476 = _1472;
+                }
+                _1473 = _1476;
+            }
+            else
+            {
+                uint _1474;
+                if (_772 > _958)
+                {
+                    uint _1101 = _1064 & 4278190080u;
+                    uint _1469;
+                    if (_772 >= (_952 - 3))
+                    {
+                        _1469 = (_1064 >> uint(8)) | _1101;
+                    }
+                    else
+                    {
+                        _1469 = _1064;
+                    }
+                    uint _1470;
+                    if (_772 >= (_952 - 2))
+                    {
+                        _1470 = (_1469 >> uint(8)) | _1101;
+                    }
+                    else
+                    {
+                        _1470 = _1469;
+                    }
+                    uint _1475;
+                    if (_772 >= (_952 - 1))
+                    {
+                        _1475 = (_1470 >> uint(8)) | _1101;
+                    }
+                    else
+                    {
+                        _1475 = _1470;
+                    }
+                    _1474 = _1475;
+                }
+                else
+                {
+                    _1474 = _1064;
+                }
+                _1473 = _1474;
+            }
+            localRegion[_1438][_755][_757] = _1473;
+        }
+        groupMemoryBarrier();
+        barrier();
+        uint _1440;
+        _1440 = 0u;
+        uint _823;
+        for (int _1439 = 0; _1439 < 4; _1440 = _823, _1439++)
+        {
+            ivec2 _810 = ivec2(_728 * 4, (_736 * 4) + _1439) + _921;
+            int _1165 = iInputLumaResolution.x >> int(uOpticalFlowPyramidLevel);
+            int _1171 = _1165 - 4;
+            int _1173 = _810.x;
+            ivec2 _1182 = ivec2(max(0, min(_1171, _1173)), max(0, min(((iInputLumaResolution.y >> int(uOpticalFlowPyramidLevel)) - 1), _810.y)));
+            uint _1277 = ((texelFetch(r_optical_flow_previous_input, _1182, 0).x | (texelFetch(r_optical_flow_previous_input, _1182 + ivec2(1, 0), 0).x << uint(8))) | (texelFetch(r_optical_flow_previous_input, _1182 + ivec2(2, 0), 0).x << uint(16))) | (texelFetch(r_optical_flow_previous_input, _1182 + ivec2(3, 0), 0).x << uint(24));
+            uint _1449;
+            if (_1173 < 0)
+            {
+                uint _1282 = _1277 & 255u;
+                uint _1447;
+                if (_1173 <= (-1))
+                {
+                    _1447 = (_1277 << uint(8)) | _1282;
+                }
+                else
+                {
+                    _1447 = _1277;
+                }
+                uint _1448;
+                if (_1173 <= (-2))
+                {
+                    _1448 = (_1447 << uint(8)) | _1282;
+                }
+                else
+                {
+                    _1448 = _1447;
+                }
+                uint _1452;
+                if (_1173 <= (-3))
+                {
+                    _1452 = (_1448 << uint(8)) | _1282;
+                }
+                else
+                {
+                    _1452 = _1448;
+                }
+                _1449 = _1452;
+            }
+            else
+            {
+                uint _1450;
+                if (_1173 > _1171)
+                {
+                    uint _1314 = _1277 & 4278190080u;
+                    uint _1445;
+                    if (_1173 >= (_1165 - 3))
+                    {
+                        _1445 = (_1277 >> uint(8)) | _1314;
+                    }
+                    else
+                    {
+                        _1445 = _1277;
+                    }
+                    uint _1446;
+                    if (_1173 >= (_1165 - 2))
+                    {
+                        _1446 = (_1445 >> uint(8)) | _1314;
+                    }
+                    else
+                    {
+                        _1446 = _1445;
+                    }
+                    uint _1451;
+                    if (_1173 >= (_1165 - 1))
+                    {
+                        _1451 = (_1446 >> uint(8)) | _1314;
+                    }
+                    else
+                    {
+                        _1451 = _1446;
+                    }
+                    _1450 = _1451;
+                }
+                else
+                {
+                    _1450 = _1277;
+                }
+                _1449 = _1450;
+            }
+            _823 = _1440 + uint(((abs(int((localRegion[_1439][_755][_757] >> uint(0)) & 255u) - int((_1449 >> uint(0)) & 255u)) + abs(int((localRegion[_1439][_755][_757] >> uint(8)) & 255u) - int((_1449 >> uint(8)) & 255u))) + abs(int((localRegion[_1439][_755][_757] >> uint(16)) & 255u) - int((_1449 >> uint(16)) & 255u))) + abs(int((localRegion[_1439][_755][_757] >> uint(24)) & 255u) - int((_1449 >> uint(24)) & 255u)));
+        }
+        sads[_724][_755][_757] = _1440;
+        groupMemoryBarrier();
+        barrier();
+        if (_724 == 0)
+        {
+            uint _1442;
+            _1442 = 0u;
+            uint _1485;
+            uint _1486;
+            int _1441 = 0;
+            uint _1443 = 4294967295u;
+            for (; _1441 < 4; _1443 = _1486, _1442 = _1485, _1441++)
+            {
+                if (sads[_1441][_755][_757] < _1443)
+                {
+                    _1486 = sads[_1441][_755][_757];
+                    _1485 = uint(_1441);
+                }
+                else
+                {
+                    _1486 = _1443;
+                    _1485 = _1442;
+                }
+            }
+            imageStore(rw_optical_flow_next_level, _668.xy, ivec4(nearestVectors[_1442][_755][_757], 0, 0));
+        }
+        break;
+    } while(false);
+}
+

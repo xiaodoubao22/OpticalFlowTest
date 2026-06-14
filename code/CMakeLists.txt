@@ -1,0 +1,85 @@
+cmake_minimum_required(VERSION 3.10)
+
+project(FluidSimulation)
+set(CMAKE_BUILD_TYPE "Debug")
+set(CMAKE_CXX_STANDARD 17)
+set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -g -O0 -fno-omit-frame-pointer")
+link_libraries(dbghelp)
+
+# [third_party]设置三方库包含路径
+set(THIRD_PARTY ${CMAKE_SOURCE_DIR}/../third_party)
+set(GLAD_DIR ${THIRD_PARTY}/glad/include)
+set(GLM_DIR ${THIRD_PARTY}/glm)
+set(GLFW_DIR ${THIRD_PARTY}/glfw-3.3.8.bin.WIN64)
+set(STB_DIR ${THIRD_PARTY}/stb)
+set(FFMPEG_DIR ${THIRD_PARTY}/FFmpeg)
+set(GLFW_LIB ${GLFW_DIR}/lib-vc2022/glfw3.lib)
+
+message("=====================================GLFW_LIB=${GLFW_LIB}")
+
+# [common]
+set(COMMON_INC_DIR ${CMAKE_SOURCE_DIR}/Common/Inc)
+file(GLOB COMMON_INC_FILES ${COMMON_INC_DIR}/*.h)
+file(GLOB COMMON_SRC_FILES ${CMAKE_SOURCE_DIR}/Common/Src/*.cpp)
+
+# [FrameGeneration]
+set(FRAME_GENERATION_FRAMEWORK_DIR ${CMAKE_SOURCE_DIR}/FrameGeneration/Framework)
+set(FRAME_GENERATION_ALGORITHM_DIR ${CMAKE_SOURCE_DIR}/FrameGeneration/Algorithm)
+
+set(FRAME_GENERATION_ALGORITHM_INC_DIR ${FRAME_GENERATION_FRAMEWORK_DIR}/Inc)
+set(FRAME_GENERATION_FRAMEWORK_INC_DIR ${FRAME_GENERATION_ALGORITHM_DIR}/Inc)
+
+file(GLOB FRAME_GENERATION_INC_FILES
+    ${FRAME_GENERATION_FRAMEWORK_DIR}/Inc/*.h
+    ${FRAME_GENERATION_ALGORITHM_DIR}/Inc/*.h
+)
+file(GLOB FRAME_GENERATION_SRC_FILES
+    ${FRAME_GENERATION_FRAMEWORK_DIR}/Src/*.cpp
+    ${FRAME_GENERATION_ALGORITHM_DIR}/Src/*.cpp
+)
+file(GLOB FRAME_GENERATION_SHADER_FILES
+    ${FRAME_GENERATION_FRAMEWORK_DIR}/Shaders/*
+    ${FRAME_GENERATION_ALGORITHM_DIR}/Shaders/*
+)
+
+# 全局包含目录
+include_directories(${GLAD_DIR} ${GLM_DIR} ${GLFW_DIR}/include ${STB_DIR} ${COMMON_INC_DIR} ${FFMPEG_DIR}/include)
+
+# -----------FrameGeneration项目-----------
+set(PROJECT_FG FrameGeneration)
+add_executable(${PROJECT_FG}
+    ${COMMON_INC_FILES} 
+    ${COMMON_SRC_FILES}
+    ${FRAME_GENERATION_INC_FILES}
+    ${FRAME_GENERATION_SRC_FILES}
+    ${CMAKE_SOURCE_DIR}/FrameGeneration/MainFG.cpp
+    ${THIRD_PARTY}/glad/src/glad.c
+    ${FRAME_GENERATION_SHADER_FILES}
+    ) 
+target_include_directories(${PROJECT_FG} PUBLIC
+    ${FRAME_GENERATION_ALGORITHM_INC_DIR}
+    ${FRAME_GENERATION_FRAMEWORK_INC_DIR}
+)
+target_link_libraries(${PROJECT_FG}
+    ${GLFW_LIB}
+    ${FFMPEG_DIR}/lib/avcodec.lib
+    ${FFMPEG_DIR}/lib/avformat.lib
+    ${FFMPEG_DIR}/lib/avutil.lib
+    ${FFMPEG_DIR}/lib/swscale.lib 
+    )
+
+# [vs]设置显示层级
+set(ALL_FILES
+    ${COMMON_INC_FILES} 
+    ${COMMON_SRC_FILES}
+    ${FRAME_GENERATION_SRC_FILES}
+    ${FRAME_GENERATION_INC_FILES}
+    ${FRAME_GENERATION_SHADER_FILES}
+    ${CMAKE_SOURCE_DIR}/FrameGeneration/MainFG.cpp
+    ${FW_SRC_FILES}
+    )
+source_group(TREE ${CMAKE_SOURCE_DIR} FILES ${ALL_FILES})
+
+# [vs]设置启动项目
+set_property (DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR} PROPERTY VS_STARTUP_PROJECT ${PROJECT_FG})
+

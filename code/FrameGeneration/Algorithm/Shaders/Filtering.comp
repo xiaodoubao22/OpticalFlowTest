@@ -1,0 +1,48 @@
+#version 460
+#extension GL_KHR_vulkan_glsl : enable
+layout(local_size_x = 16, local_size_y = 4, local_size_z = 1) in;
+
+layout(set = 0, binding = 0) uniform isampler2D r_optical_flow_previous;
+layout(set = 0, binding = 1, rg16i) uniform writeonly iimage2D rw_optical_flow;
+
+void main()
+{
+    ivec2 _162 = ivec2(gl_GlobalInvocationID.xy);
+    int _304;
+    _304 = -1;
+    ivec2 _194[9];
+    int _313;
+    for (int _314 = 0; _304 < 2; _304++, _314 = _313)
+    {
+        _313 = _314;
+        for (int _311 = -1; _311 < 2; )
+        {
+            _194[_313] = texelFetch(r_optical_flow_previous, _162 + ivec2(_304, _311), 0).xy;
+            _313++;
+            _311++;
+            continue;
+        }
+    }
+    int _305;
+    uint _306;
+    _306 = 4294967295u;
+    _305 = 0;
+    uint _275;
+    for (; _305 < 9; _306 = _275, _305++)
+    {
+        uint _308;
+        _308 = 0u;
+        for (int _307 = 0; _307 < 9; )
+        {
+            ivec2 _249 = _194[_305] - _194[_307];
+            int _251 = _249.x;
+            int _257 = _249.y;
+            _308 = uint(_251 * _251) + (uint(_257 * _257) + _308);
+            _307++;
+            continue;
+        }
+        _275 = min(((_308 << uint(4)) | uint(_305)), _306);
+    }
+    imageStore(rw_optical_flow, _162, ivec4(_194[_306 & 15u], 0, 0));
+}
+
