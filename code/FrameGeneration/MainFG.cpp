@@ -8,7 +8,9 @@
 #include "FSR3OpticalFlow.h"
 
 const bool CONTROL_FPS = false;
-const std::string VIDEO_PATH = "../resources/Videos/Seq-020/Seq-020.mp4";
+const std::string VIDEO_PATH = "../resources/Videos/Seq-004/Seq-004.mp4";
+
+
 const std::chrono::microseconds TARGET_FRAME_DURATION(9000);
 auto frameStartTime = std::chrono::high_resolution_clock::now();
 
@@ -51,7 +53,7 @@ int main()
 
         frameStartTime = std::chrono::high_resolution_clock::now();
 
-        //videoLoader.ReadFrame(frame);
+        videoLoader.ReadFrame(frame);
         if (!videoLoader.ReadFrame(frame)) {
             videoLoader.Close();
             videoLoader.Open(VIDEO_PATH);
